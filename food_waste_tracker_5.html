@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>St Stephen's School · Food Waste Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green-dark:  #27500A;
+      --green-mid:   #3B6D11;
+      --green-light: #639922;
+      --green-pale:  #EAF3DE;
+      --green-acc:   #97C459;
+      --bg:          #f4f7f1;
+      --card:        #ffffff;
+      --border:      rgba(0,0,0,0.10);
+      --text:        #1a1a1a;
+      --muted:       #6b7a5e;
+      --red:         #A32D2D;
+      --red-bg:      #FCEBEB;
+      --amber:       #854F0B;
+      --amber-bg:    #FAEEDA;
+      --radius:      12px;
+      --radius-sm:   8px;
+    }
+    body { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px 48px; }
+    .wrapper { max-width: 480px; margin: 0 auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .hero { background: linear-gradient(135deg, #c8e6a0 0%, #e8f5d0 60%, #f0f8e8 100%); border-radius: var(--radius); padding: 28px 24px 20px; margin-bottom: 18px; text-align: center; border: 1px solid rgba(99,153,34,0.2); }
+    .hero-icon { font-size: 44px; margin-bottom: 8px; }
+    .hero h1 { font-size: 22px; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+    .hero p { font-size: 13px; color: var(--green-mid); }
+
+    .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 18px; }
+    .step-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+    .step-dot.active { background: var(--green-mid); }
+    .step-dot.done   { background: var(--green-acc); }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+    label { display: block; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+    input[type="text"], input[type="number"], input[type="password"], select {
+      width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--bg); color: var(--text);
+      margin-bottom: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit;
+    }
+    input:focus, select:focus { border-color: var(--green-light); box-shadow: 0 0 0 3px rgba(99,153,34,0.15); background: #fff; }
+
+    .btn-primary { background: var(--green-mid); color: #fff; border: none; border-radius: var(--radius-sm); width: 100%; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 4px; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--green-dark); }
+    .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); width: 100%; padding: 11px; font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 8px; }
+    .btn-secondary:hover { background: var(--bg); }
+    .btn-back { background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 14px; font-size: 13px; color: var(--muted); cursor: pointer; margin-bottom: 14px; font-family: inherit; }
+    .btn-back:hover { background: var(--bg); }
+
+    .error { font-size: 12px; color: var(--red); background: var(--red-bg); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 10px; display: none; }
+    .warning-box { background: var(--amber-bg); border-left: 3px solid var(--amber); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--amber); margin-bottom: 14px; display: none; }
+    .tip-box { background: var(--green-pale); border-left: 3px solid var(--green-mid); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--green-dark); margin-bottom: 14px; }
+
+    .summary-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .lbl { color: var(--muted); }
+    .total-row { display: flex; justify-content: space-between; padding: 12px 0 0; font-size: 16px; font-weight: 700; color: var(--green-dark); }
+    .badge { background: var(--green-pale); color: var(--green-mid); border-radius: var(--radius-sm); padding: 2px 10px; font-size: 12px; font-weight: 600; border: 1px solid rgba(99,153,34,0.25); }
+
+    .weight-wrap { position: relative; margin-bottom: 14px; }
+    .weight-wrap input { padding-right: 40px; margin-bottom: 0; }
+    .weight-unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--muted); pointer-events: none; }
+
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; margin-bottom: 14px; text-align: center; }
+    .login-card h2 { font-size: 18px; font-weight: 700; color: var(--green-dark); margin-bottom: 6px; }
+    .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .login-card label { text-align: left; }
+    .lock-icon { font-size: 36px; margin-bottom: 8px; }
+    .attempt-badge { display: inline-block; background: var(--red-bg); color: var(--red); border-radius: var(--radius-sm); padding: 3px 10px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+
+    .success-hero { background: linear-gradient(135deg, #c8e6a0 0%, #e8f5d0 100%); border-radius: var(--radius); padding: 36px 24px 24px; text-align: center; margin-bottom: 16px; border: 1px solid rgba(99,153,34,0.2); }
+    .success-icon { font-size: 52px; margin-bottom: 10px; }
+    .success-hero h1 { font-size: 22px; font-weight: 700; color: var(--green-dark); margin-bottom: 6px; }
+    .success-hero p { font-size: 13px; color: var(--green-mid); }
+
+    .lockout-card { background: var(--red-bg); border: 1px solid rgba(163,45,45,0.3); border-radius: var(--radius); padding: 32px 24px; text-align: center; margin-bottom: 14px; }
+    .lockout-icon { font-size: 40px; margin-bottom: 10px; }
+    .lockout-card h2 { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 8px; }
+    .lockout-card p { font-size: 13px; color: var(--red); margin-bottom: 6px; }
+    .countdown { font-size: 32px; font-weight: 700; color: var(--red); margin: 12px 0; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="step-indicator" id="stepDots" style="display:none;">
+    <div class="step-dot active" id="dot0"></div>
+    <div class="step-dot" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+  </div>
+
+  <!-- LOGIN PAGE -->
+  <div class="page active" id="pageLogin">
+    <div class="hero">
+      <div class="hero-icon">🌱</div>
+      <h1>St Stephen's School</h1>
+      <p>Recess Food Waste Tracker · P5 &amp; P6</p>
+    </div>
+    <div class="login-card">
+      <div class="lock-icon">🔒</div>
+      <h2>Class Rep Sign-In</h2>
+      <p>Enter your class and secret code to submit today's food waste data.</p>
+      <label for="loginClass">Your Class</label>
+      <select id="loginClass">
+        <option value="">— Select your class —</option>
+        <optgroup label="Primary 5">
+          <option value="5Courage">P5 Courage</option>
+          <option value="5Diligence">P5 Diligence</option>
+          <option value="5Empathy">P5 Empathy</option>
+          <option value="5Fortitude">P5 Fortitude</option>
+          <option value="5Gratitude">P5 Gratitude</option>
+          <option value="5Humility">P5 Humility</option>
+          <option value="5Integrity">P5 Integrity</option>
+          <option value="5Joy">P5 Joy</option>
+        </optgroup>
+        <optgroup label="Primary 6">
+          <option value="6Courage">P6 Courage</option>
+          <option value="6Diligence">P6 Diligence</option>
+          <option value="6Empathy">P6 Empathy</option>
+          <option value="6Fortitude">P6 Fortitude</option>
+          <option value="6Gratitude">P6 Gratitude</option>
+          <option value="6Humility">P6 Humility</option>
+          <option value="6Integrity">P6 Integrity</option>
+        </optgroup>
+      </select>
+      <label for="loginCode">Class Secret Code</label>
+      <input type="password" id="loginCode" placeholder="Enter your class code" autocomplete="off" />
+      <div id="loginError" class="error"></div>
+      <div id="attemptInfo" style="display:none; margin-bottom:10px;">
+        <span class="attempt-badge" id="attemptBadge"></span>
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Sign In →</button>
+    </div>
+    <div class="tip-box" style="text-align:center; font-size:12px;">
+      🔑 Your class code is given to you by your St Stephen's teacher. Do not share it with other classes.
+    </div>
+  </div>
+
+  <!-- LOCKOUT PAGE -->
+  <div class="page" id="pageLockout">
+    <div class="lockout-card">
+      <div class="lockout-icon">🚫</div>
+      <h2>Access Locked</h2>
+      <p id="lockoutMsg">Too many wrong attempts.</p>
+      <p>Please try again in:</p>
+      <div class="countdown" id="lockoutTimer">5:00</div>
+      <p style="font-size:12px; margin-top:8px;">If you need help, please see your teacher.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 0: Rep Info -->
+  <div class="page" id="page0">
+    <div class="hero">
+      <div class="hero-icon">🌱</div>
+      <h1>St Stephen's School</h1>
+      <p>Recording for <strong id="heroClass"></strong> · Recess</p>
+    </div>
+    <div class="card">
+      <p class="section-label">Class Representative</p>
+      <label for="repName">Your Name</label>
+      <input type="text" id="repName" placeholder="E.g. Mei Ling" />
+      <label for="reportDate">Date</label>
+      <input type="text" id="reportDate" readonly style="background:#f0f0f0; color:var(--muted); cursor:not-allowed;" />
+      <div id="alreadySubmittedWarn" class="warning-box">
+        ⚠️ A report for your class today has already been submitted. Submitting again will overwrite it. Please check with your teacher first.
+      </div>
+      <div id="repError" class="error">Please enter your name.</div>
+    </div>
+    <button class="btn-primary" onclick="goTo(1)">Next →</button>
+  </div>
+
+  <!-- PAGE 1: Weight Entry -->
+  <div class="page" id="page1">
+    <button class="btn-back" onclick="goTo(0)">← Back</button>
+    <div class="tip-box">Weigh all the leftover food from recess for your level and enter the total below.</div>
+    <div class="card">
+      <p class="section-label">Food Waste Weight</p>
+      <label>Total weight of food waste for <span id="levelLabel"></span></label>
+      <div class="weight-wrap">
+        <input type="number" id="wasteWeight" placeholder="0" min="0" step="0.1" />
+        <span class="weight-unit">g</span>
+      </div>
+      <div id="weightError" class="error">Please enter a valid weight greater than 0.</div>
+      <label for="foodNotes">Food types wasted <span style="font-weight:400; color:var(--muted)">(optional)</span></label>
+      <input type="text" id="foodNotes" placeholder="E.g. Rice, bread, noodles" style="margin-bottom:0;" />
+    </div>
+    <div class="card">
+      <label for="comments">Any comments? <span style="font-weight:400; color:var(--muted)">(optional)</span></label>
+      <input type="text" id="comments" placeholder="E.g. Many students didn't finish their rice today" style="margin-bottom:0;" />
+    </div>
+    <button class="btn-primary" onclick="goTo(2)">Review & Submit →</button>
+  </div>
+
+  <!-- PAGE 2: Summary -->
+  <div class="page" id="page2">
+    <button class="btn-back" onclick="goTo(1)">← Back</button>
+    <div class="card">
+      <p class="section-label">Submission Details</p>
+      <div class="summary-row"><span class="lbl">Class</span><span id="sumClass">—</span></div>
+      <div class="summary-row"><span class="lbl">Rep Name</span><span id="sumRep">—</span></div>
+      <div class="summary-row"><span class="lbl">Date</span><span id="sumDate">—</span></div>
+      <div class="summary-row"><span class="lbl">Meal</span><span><span class="badge">Recess</span></span></div>
+    </div>
+    <div class="card">
+      <p class="section-label">Food Waste Recorded</p>
+      <div class="summary-row"><span class="lbl">Total Weight</span><span id="sumWeight" style="font-weight:600;">—</span></div>
+      <div id="sumNotesRow" class="summary-row" style="display:none;"><span class="lbl">Food Types</span><span id="sumNotes">—</span></div>
+      <div id="sumCommentRow" class="summary-row" style="display:none;"><span class="lbl">Comments</span><span id="sumComment">—</span></div>
+    </div>
+    <button class="btn-primary" onclick="submitReport()">Confirm & Submit ✓</button>
+    <button class="btn-secondary" onclick="downloadCSV()">⬇ Download as CSV</button>
+  </div>
+
+  <!-- SUCCESS PAGE -->
+  <div class="page" id="pageSuccess">
+    <div class="success-hero">
+      <div class="success-icon">🌍</div>
+      <h1>Report Submitted!</h1>
+      <p>Thank you for helping <span id="successClass"></span> track food waste today.</p>
+    </div>
+    <div class="card">
+      <p class="section-label">What Was Recorded</p>
+      <div class="summary-row"><span class="lbl">Class</span><span id="finalClass">—</span></div>
+      <div class="summary-row"><span class="lbl">Date</span><span id="finalDate">—</span></div>
+      <div class="summary-row"><span class="lbl">Total Waste</span><span id="finalWeight" style="font-weight:700; color:var(--green-dark);">—</span></div>
+    </div>
+    <div class="tip-box" id="ecoTip"></div>
+    <button class="btn-secondary" onclick="downloadCSV()">⬇ Download as CSV</button>
+    <button class="btn-primary" style="margin-top:8px;" onclick="logout()">Done / Log Out</button>
+  </div>
+
+</div>
+<script>
+  // ── Class codes — change these to your school's actual codes ──────────────
+  const CLASS_CODES = {
+    '5Courage':   'step5cou', '5Diligence': 'step5dil', '5Empathy':   'step5emp',
+    '5Fortitude': 'step5for', '5Gratitude': 'step5gra', '5Humility':  'step5hum',
+    '5Integrity': 'step5int', '5Joy':       'step5joy',
+    '6Courage':   'step6cou', '6Diligence': 'step6dil', '6Empathy':   'step6emp',
+    '6Fortitude': 'step6for', '6Gratitude': 'step6gra', '6Humility':  'step6hum',
+    '6Integrity': 'step6int'
+  };
+  const MAX_ATTEMPTS        = 5;
+  const LOCKOUT_SECS        = 300;
+  const GLOBAL_MAX_ATTEMPTS = 8;
+  const GLOBAL_LOCKOUT_SECS = 600;
+
+  let currentClass = '';
+  let reportData   = {};
+  let lockoutInterval = null;
+
+  function fmtClass(cls) { return 'P' + cls[0] + ' ' + cls.slice(1); }
+
+  function getGlobalAttempts() {
+    try { return JSON.parse(sessionStorage.getItem('global_att') || '{"count":0,"lockedUntil":0}'); }
+    catch(e) { return { count: 0, lockedUntil: 0 }; }
+  }
+  function setGlobalAttempts(obj) {
+    try { sessionStorage.setItem('global_att', JSON.stringify(obj)); } catch(e) {}
+  }
+
+  function getToday() {
+    const d = new Date();
+    return String(d.getDate()).padStart(2,'0') + '/' +
+           String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  function getAttempts(cls) {
+    try { return JSON.parse(sessionStorage.getItem('att_' + cls) || '{"count":0,"lockedUntil":0}'); }
+    catch(e) { return { count: 0, lockedUntil: 0 }; }
+  }
+  function setAttempts(cls, obj) {
+    try { sessionStorage.setItem('att_' + cls, JSON.stringify(obj)); } catch(e) {}
+  }
+  function wasSubmitted(cls) {
+    try { return !!sessionStorage.getItem('sub_' + cls + '_' + getToday()); } catch(e) { return false; }
+  }
+  function markSubmitted(cls) {
+    try { sessionStorage.setItem('sub_' + cls + '_' + getToday(), '1'); } catch(e) {}
+  }
+
+  function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+  function doLogin() {
+    const cls  = document.getElementById('loginClass').value;
+    const code = document.getElementById('loginCode').value.trim();
+    const err  = document.getElementById('loginError');
+
+    if (!cls) { showErr(err, 'Please select your class first.'); return; }
+    if (!code) { showErr(err, 'Please enter your class code.'); return; }
+
+    const now    = Date.now();
+    const gAtt   = getGlobalAttempts();
+    const clsAtt = getAttempts(cls);
+
+    // Check device-wide lockout (anti-sabotage)
+    if (gAtt.lockedUntil > now) {
+      startLockout(Math.ceil((gAtt.lockedUntil - now) / 1000), true);
+      return;
+    }
+    // Check per-class lockout
+    if (clsAtt.lockedUntil > now) {
+      startLockout(Math.ceil((clsAtt.lockedUntil - now) / 1000), false);
+      return;
+    }
+
+    if (code === CLASS_CODES[cls]) {
+      // Success — reset per-class attempts, keep global
+      setAttempts(cls, { count: 0, lockedUntil: 0 });
+      err.style.display = 'none';
+      document.getElementById('attemptInfo').style.display = 'none';
+      currentClass = cls;
+      initForm();
+    } else {
+      // Wrong — increment both per-class and global
+      clsAtt.count++;
+      gAtt.count++;
+      const clsLeft = MAX_ATTEMPTS - clsAtt.count;
+
+      // Device-wide lockout triggered?
+      if (gAtt.count >= GLOBAL_MAX_ATTEMPTS) {
+        gAtt.lockedUntil = now + GLOBAL_LOCKOUT_SECS * 1000;
+        setGlobalAttempts(gAtt);
+        setAttempts(cls, clsAtt);
+        startLockout(GLOBAL_LOCKOUT_SECS, true);
+        return;
+      }
+      // Per-class lockout triggered?
+      if (clsAtt.count >= MAX_ATTEMPTS) {
+        clsAtt.lockedUntil = now + LOCKOUT_SECS * 1000;
+        setAttempts(cls, clsAtt);
+        setGlobalAttempts(gAtt);
+        startLockout(LOCKOUT_SECS, false);
+        return;
+      }
+
+      setAttempts(cls, clsAtt);
+      setGlobalAttempts(gAtt);
+      showErr(err, 'Wrong code. ' + clsLeft + ' attempt' + (clsLeft !== 1 ? 's' : '') + ' left for ' + fmtClass(cls) + ' before lockout.');
+      const badge = document.getElementById('attemptBadge');
+      badge.textContent = gAtt.count + ' total failed attempt' + (gAtt.count > 1 ? 's' : '') + ' on this device';
+      document.getElementById('attemptInfo').style.display = 'block';
+    }
+  }
+
+  function startLockout(seconds, isGlobal) {
+    const msg = isGlobal
+      ? 'Too many failed attempts across multiple classes. This device is locked.'
+      : 'Too many wrong attempts for this class.';
+    document.getElementById('lockoutMsg').textContent = msg;
+    showPage('pageLockout');
+    if (lockoutInterval) clearInterval(lockoutInterval);
+    let rem = seconds;
+    tick(rem);
+    lockoutInterval = setInterval(() => {
+      rem--;
+      tick(rem);
+      if (rem <= 0) {
+        clearInterval(lockoutInterval);
+        lockoutInterval = null;
+        document.getElementById('loginCode').value = '';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('attemptInfo').style.display = 'none';
+        showPage('pageLogin');
+      }
+    }, 1000);
+  }
+  function tick(secs) {
+    const m = Math.floor(secs / 60), s = secs % 60;
+    document.getElementById('lockoutTimer').textContent = m + ':' + String(s).padStart(2,'0');
+  }
+
+  function initForm() {
+    document.getElementById('reportDate').value        = getToday();
+    document.getElementById('heroClass').textContent   = fmtClass(currentClass);
+    document.getElementById('levelLabel').textContent  = 'Primary ' + currentClass[0];
+    document.getElementById('alreadySubmittedWarn').style.display = wasSubmitted(currentClass) ? 'block' : 'none';
+    document.getElementById('stepDots').style.display = 'flex';
+    showPage('page0');
+    updateDots(0);
+  }
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateDots(n) {
+    for (let i = 0; i < 3; i++) {
+      const d = document.getElementById('dot' + i);
+      if (!d) continue;
+      d.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+    }
+  }
+
+  function goTo(n) {
+    if (n === 1) {
+      const name = document.getElementById('repName').value.trim();
+      const err  = document.getElementById('repError');
+      if (!name) { err.style.display = 'block'; return; }
+      err.style.display = 'none';
+    }
+    if (n === 2) {
+      const w   = parseFloat(document.getElementById('wasteWeight').value);
+      const err = document.getElementById('weightError');
+      if (!w || w <= 0) { err.style.display = 'block'; return; }
+      err.style.display = 'none';
+      buildSummary();
+    }
+    showPage('page' + n);
+    updateDots(n);
+  }
+
+  function buildSummary() {
+    const rep      = document.getElementById('repName').value.trim();
+    const weight   = parseFloat(document.getElementById('wasteWeight').value);
+    const notes    = document.getElementById('foodNotes').value.trim();
+    const comments = document.getElementById('comments').value.trim();
+
+    document.getElementById('sumClass').textContent  = fmtClass(currentClass);
+    document.getElementById('sumRep').textContent    = rep;
+    document.getElementById('sumDate').textContent   = getToday();
+    document.getElementById('sumWeight').textContent = weight + ' g';
+
+    const nr = document.getElementById('sumNotesRow');
+    nr.style.display = notes ? 'flex' : 'none';
+    if (notes) document.getElementById('sumNotes').textContent = notes;
+
+    const cr = document.getElementById('sumCommentRow');
+    cr.style.display = comments ? 'flex' : 'none';
+    if (comments) document.getElementById('sumComment').textContent = comments;
+
+    reportData = { cls: 'P' + currentClass, rep, date: getToday(), weight, notes, comments };
+  }
+
+  function submitReport() {
+    buildSummary();
+    markSubmitted(currentClass);
+
+    const tips = [
+      'Remind your class to take only what they can finish at recess!',
+      'Food waste produces methane, a harmful greenhouse gas. Every gram counts!',
+      'Great job tracking today — awareness is the first step to change.',
+      'Composting food waste turns it into useful fertiliser for plants.',
+      'Talk to your class about choosing portions wisely before recess.'
+    ];
+    document.getElementById('ecoTip').textContent     = '💡 Eco tip: ' + tips[Math.floor(Math.random() * tips.length)];
+    document.getElementById('successClass').textContent = reportData.cls;
+    document.getElementById('finalClass').textContent  = reportData.cls;
+    document.getElementById('finalDate').textContent   = reportData.date;
+    document.getElementById('finalWeight').textContent = reportData.weight + ' g';
+
+    document.getElementById('stepDots').style.display = 'none';
+    showPage('pageSuccess');
+  }
+
+  function downloadCSV() {
+    if (!reportData.cls) return;
+    let csv = 'Class,Rep Name,Date,Meal,Total Weight (g),Food Types,Comments\n';
+    csv += `"${reportData.cls}","${reportData.rep}","${reportData.date}","Recess",${reportData.weight},"${reportData.notes||''}","${reportData.comments||''}"\n`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'food-waste-' + reportData.cls.replace(' ','-') + '-' + reportData.date.replace(/\//g,'-') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function logout() {
+    currentClass = '';
+    reportData   = {};
+    ['repName','wasteWeight','foodNotes','comments'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('loginClass').value = '';
+    document.getElementById('loginCode').value  = '';
+    document.getElementById('loginError').style.display  = 'none';
+    document.getElementById('stepDots').style.display    = 'none';
+    showPage('pageLogin');
+  }
+
+  document.getElementById('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
